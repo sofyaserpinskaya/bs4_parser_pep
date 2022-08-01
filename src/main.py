@@ -11,6 +11,7 @@ from constants import (
     BASE_DIR, DOWNLOADS_DIR, EXPECTED_STATUS, MAIN_DOC_URL, PEPS_URL,
     STATUS_PATTERN
 )
+from exceptions import ParserFindTagException
 from outputs import control_output
 from utils import find_tag, get_soup
 
@@ -40,12 +41,15 @@ def whats_new(session):
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(sections_by_python):
         version_link = urljoin(whats_new_url, section.select_one('a')['href'])
-        soup = get_soup(session, version_link)
-        results.append((
-            version_link,
-            find_tag(soup, 'h1').text,
-            find_tag(soup, 'dl').text.replace('\n', ' ')
-        ))
+        try:
+            soup = get_soup(session, version_link)
+            results.append((
+                version_link,
+                find_tag(soup, 'h1').text,
+                find_tag(soup, 'dl').text.replace('\n', ' ')
+            ))
+        except ConnectionError:
+            continue
     return results
 
 
@@ -96,21 +100,24 @@ def pep(session):
     results = defaultdict(int)
     unexpected_statuses = []
     for pep in tqdm(peps):
-        pep_url = urljoin(
-            PEPS_URL,
-            find_tag(
-                pep, 'a', attrs={'class': 'pep reference internal'}
-            )['href']
-        )
-        status = STATUS_PATTERN.search(
-            find_tag(get_soup(session, pep_url), 'dl').text
-        ).groups()[0]
-        results[status] += 1
-        expected_status = EXPECTED_STATUS[find_tag(pep, 'td').text[1:]]
-        if status not in expected_status:
-            unexpected_statuses.append(
-                (str(pep_url), str(status), str(expected_status))
+        try:
+            pep_url = urljoin(
+                PEPS_URL,
+                find_tag(
+                    pep, 'a', attrs={'class': 'pep reference internal'}
+                )['href']
             )
+            status = STATUS_PATTERN.search(
+                find_tag(get_soup(session, pep_url), 'dl').text
+            ).groups()[0]
+            results[status] += 1
+            expected_status = EXPECTED_STATUS[find_tag(pep, 'td').text[1:]]
+            if status not in expected_status:
+                unexpected_statuses.append(
+                    (str(pep_url), str(status), str(expected_status))
+                )
+        except ParserFindTagException:
+            continue
     for item in unexpected_statuses:
         pep_url, status, expected_status = item
         logging.info(UNEXPECTED_STATUSES.format(*item))

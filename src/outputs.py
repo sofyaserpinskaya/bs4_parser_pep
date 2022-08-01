@@ -13,12 +13,12 @@ from constants import (
 FILE_SAVED_LOG = 'Файл с результатами был сохранён: {}.'
 
 
-def default_output(results, cli_args):
+def default_output(results, *_):
     for row in results:
         print(*row)
 
 
-def pretty_output(results, cli_args):
+def pretty_output(results, *_):
     table = PrettyTable()
     table.field_names = results[0]
     table.align = 'l'
