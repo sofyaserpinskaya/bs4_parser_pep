@@ -4,18 +4,21 @@ import logging
 
 from prettytable import PrettyTable
 
-from constants import BASE_DIR, DATETIME_FORMAT, FILE, PRETTY, RESULTS_DIR
+from constants import (
+    BASE_DIR, DATETIME_FORMAT, FILE_OUTPUT_ARGUMENT,
+    PRETTY_OUTPUT_ARGUMENT, RESULTS_DIR
+)
 
 
-FILE_SAVED = 'Файл с результатами был сохранён: {}.'
+FILE_SAVED_LOG = 'Файл с результатами был сохранён: {}.'
 
 
-def default_output(results):
+def default_output(results, cli_args):
     for row in results:
         print(*row)
 
 
-def pretty_output(results):
+def pretty_output(results, cli_args):
     table = PrettyTable()
     table.field_names = results[0]
     table.align = 'l'
@@ -33,14 +36,15 @@ def file_output(results, cli_args):
     with open(file_path, 'w', encoding='utf-8') as f:
         writer = csv.writer(f, dialect='unix')
         writer.writerows(results)
-    logging.info(FILE_SAVED.format(file_path))
+    logging.info(FILE_SAVED_LOG.format(file_path))
 
 
-def control_output(results, cli_args):
-    outputs = {
-        PRETTY: (pretty_output, [results]),
-        FILE: (file_output, [results, cli_args]),
-        None: (default_output, [results]),
-    }
-    output_function, parameters = outputs[cli_args.output]
-    output_function(*parameters)
+OUTPUTS = {
+    PRETTY_OUTPUT_ARGUMENT: (pretty_output),
+    FILE_OUTPUT_ARGUMENT: (file_output),
+    None: (default_output),
+}
+
+
+def control_output(results, cli_args, outputs=OUTPUTS):
+    outputs[cli_args.output](results, cli_args)

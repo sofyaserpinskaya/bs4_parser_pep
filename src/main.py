@@ -4,7 +4,6 @@ from collections import defaultdict
 from urllib.parse import urljoin
 
 import requests_cache
-from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
@@ -13,7 +12,7 @@ from constants import (
     STATUS_PATTERN
 )
 from outputs import control_output
-from utils import find_tag, get_response
+from utils import find_tag, get_soup
 
 
 PYTHON_VERSIONS_ERROR = 'Не найден список c версиями Python'
@@ -24,12 +23,11 @@ UNEXPECTED_STATUSES = (
     'Ожидаемые статусы: {}'
 )
 
-
-def get_soup(session, url):
-    response = get_response(session, url)
-    if response is None:
-        return
-    return BeautifulSoup(response.text, features='lxml')
+ARGUMENTS_LOG = 'Аргументы командной строки: {}.'
+ARCHIVE_SAVED_LOG = 'Архив был загружен и сохранён: {}.'
+ERROR_LOG = 'Ошибка при выполнении.'
+PARSER_STARTED_LOG = 'Парсер запущен!'
+PARSER_FINISHED_WORK_LOG = 'Парсер завершил работу.'
 
 
 def whats_new(session):
@@ -90,17 +88,11 @@ def download(session):
     archive_path = downloads_dir / archive_url.split('/')[-1]
     with open(archive_path, 'wb') as file:
         file.write(session.get(archive_url).content)
-    logging.info(f'Архив был загружен и сохранён: {archive_path}')
+    logging.info(ARCHIVE_SAVED_LOG.format(archive_path))
 
 
 def pep(session):
-    peps_by_index = find_tag(
-        get_soup(session, PEPS_URL),
-        'section',
-        attrs={'id': 'numerical-index'}
-    )
-    peps = find_tag(peps_by_index, 'tbody')
-    peps = peps.find_all('tr')
+    peps = get_soup(session, PEPS_URL).select('#numerical-index tbody tr')
     results = defaultdict(int)
     unexpected_statuses = []
     for pep in tqdm(peps):
@@ -110,8 +102,7 @@ def pep(session):
                 pep, 'a', attrs={'class': 'pep reference internal'}
             )['href']
         )
-        status = re.search(
-            STATUS_PATTERN,
+        status = STATUS_PATTERN.search(
             find_tag(get_soup(session, pep_url), 'dl').text
         ).groups()[0]
         results[status] += 1
@@ -120,10 +111,9 @@ def pep(session):
             unexpected_statuses.append(
                 (str(pep_url), str(status), str(expected_status))
             )
-    if unexpected_statuses:
-        for item in unexpected_statuses:
-            pep_url, status, expected_status = item
-            logging.info(UNEXPECTED_STATUSES.format(*item))
+    for item in unexpected_statuses:
+        pep_url, status, expected_status = item
+        logging.info(UNEXPECTED_STATUSES.format(*item))
     return [
         ('Статус', 'Количество'),
         *sorted(results.items()),
@@ -141,11 +131,11 @@ MODE_TO_FUNCTION = {
 
 def main():
     configure_logging()
-    logging.info('Парсер запущен!')
+    logging.info(PARSER_STARTED_LOG)
     args = configure_argument_parser(
         MODE_TO_FUNCTION.keys()
     ).parse_args()
-    logging.info(f'Аргументы командной строки: {args}')
+    logging.info(ARGUMENTS_LOG.format(args))
     try:
         session = requests_cache.CachedSession()
         if args.clear_cache:
@@ -154,8 +144,8 @@ def main():
         if results is not None:
             control_output(results, args)
     except Exception:
-        logging.exception(msg='Ошибка при выполнении.', stack_info=True)
-    logging.info('Парсер завершил работу.')
+        logging.exception(msg=ERROR_LOG, stack_info=True)
+    logging.info(PARSER_FINISHED_WORK_LOG)
 
 
 if __name__ == '__main__':

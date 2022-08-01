@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -12,7 +13,7 @@ LOG_FILE = LOG_DIR / 'parser.log'
 RESULTS_DIR = 'results'
 
 DATETIME_FORMAT = '%Y-%m-%d_%H-%M-%S'
-STATUS_PATTERN = '.*Status:\n(?P<status>.*)'
+STATUS_PATTERN = re.compile('.*Status:\n(?P<status>.*)')
 
 
 EXPECTED_STATUS = {
@@ -25,5 +26,5 @@ EXPECTED_STATUS = {
     'W': ['Withdrawn'],
     '': ['Draft', 'Active'],
 }
-FILE = 'file'
-PRETTY = 'pretty'
+FILE_OUTPUT_ARGUMENT = 'file'
+PRETTY_OUTPUT_ARGUMENT = 'pretty'
