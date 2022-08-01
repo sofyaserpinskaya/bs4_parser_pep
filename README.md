@@ -1,4 +1,4 @@
-# bs4_parser_pep - парсер инфоормации о Python и PEP
+# bs4_parser_pep - парсер информации о Python и PEP
 
 ### Описание:
 
