@@ -116,7 +116,7 @@ def pep(session):
                 unexpected_statuses.append(
                     (str(pep_url), str(status), str(expected_status))
                 )
-        except ParserFindTagException:
+        except (ConnectionError, ParserFindTagException):
             continue
     for item in unexpected_statuses:
         pep_url, status, expected_status = item
